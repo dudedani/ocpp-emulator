@@ -7,14 +7,16 @@ jobs:
     name: Test
     uses: monta-app/github-workflows/.github/workflows/pull-request-kotlin.yml@main
     with:
-      skip-sonar: true
       architecture: "arm64"
-      gradle-module: "common"
       kover-report-path: "common/build/reports/kover/report.xml"
     secrets:
       GHL_USERNAME: ${{ secrets.GHL_USERNAME }}
       GHL_PASSWORD: ${{ secrets.GHL_PASSWORD }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+      # Self-hosted SonarQube lives behind the Monta VPN, so the runner joins the
+      # tailnet before the scan. (The reusable workflow guards the Tailscale step on
+      # this secret being set.)
+      TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
   static-code-analysis:
     name: Static Code Analysis
     runs-on: ubuntu-latest
