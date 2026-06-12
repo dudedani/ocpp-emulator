@@ -5,9 +5,11 @@ import com.monta.library.ocpp.v16.smartcharge.ChargingProfilePurposeType
 import com.monta.library.ocpp.v16.smartcharge.ClearChargingProfileRequest
 import com.monta.ocpp.emulator.chargepoint.entity.ChargePointDAO
 import com.monta.ocpp.emulator.chargepointconnector.entity.ChargePointConnectorDAO
+import com.monta.ocpp.emulator.common.util.ChargingProfileCalculator
 import com.monta.ocpp.emulator.v16.data.entity.TxDefaultDAO
 import com.monta.ocpp.emulator.v16.data.repository.TxDefaultRepository
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.Instant
 import javax.inject.Singleton
 
 @Singleton
@@ -36,6 +38,24 @@ class TxDefaultService(
             return transaction {
                 txDefaultRepository.delete(chargePoint, connectorDAO, request)
             }
+        }
+    }
+
+    fun getApplicableWatts(
+        chargePoint: ChargePointDAO,
+        connectorDAO: ChargePointConnectorDAO,
+        fallbackScheduleStart: Instant,
+    ): Double? {
+        return transaction {
+            val profile = txDefaultRepository.getApplicable(
+                chargePointDAO = chargePoint,
+                connectorDAO = connectorDAO,
+            )?.txDefaultProfile
+
+            ChargingProfileCalculator.getWatts(
+                chargingProfile = profile,
+                fallbackScheduleStart = fallbackScheduleStart,
+            )
         }
     }
 }

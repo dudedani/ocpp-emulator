@@ -64,6 +64,22 @@ class TxDefaultRepository {
         TxDefault.deleteWhere { condition }
     }
 
+    fun getApplicable(
+        chargePointDAO: ChargePointDAO,
+        connectorDAO: ChargePointConnectorDAO,
+    ): TxDefaultDAO? {
+        return TxDefaultDAO.find {
+            TxDefault.chargePointId eq chargePointDAO.chargePointId()
+        }.toList()
+            .filter { txDefault ->
+                txDefault.connector.id == connectorDAO.id || txDefault.connector.position == 0
+            }
+            .maxWithOrNull(
+                compareBy<TxDefaultDAO> { it.stackLevel ?: 0 }
+                    .thenBy { it.id.value },
+            )
+    }
+
     private fun findById(
         chargePointDAO: ChargePointDAO,
         connectorDAO: ChargePointConnectorDAO,

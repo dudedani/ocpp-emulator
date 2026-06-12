@@ -1,8 +1,8 @@
 package com.monta.ocpp.emulator.common.util
 
+import com.monta.library.ocpp.common.chargingprofile.ChargingRateUnit
 import com.monta.library.ocpp.v16.smartcharge.ChargingProfile
 import com.monta.library.ocpp.v16.smartcharge.ChargingSchedule
-import com.monta.library.ocpp.v16.smartcharge.ChargingSchedulePeriod
 import com.monta.ocpp.emulator.chargepointtransaction.entity.ChargePointTransactionDAO
 import java.time.Instant
 
@@ -11,14 +11,17 @@ object ChargingProfileCalculator {
     fun getWatts(
         transaction: ChargePointTransactionDAO,
     ): Double? {
-        val (ampsPerPhase, phases) = getAmps(transaction) ?: return null
-        return (ampsPerPhase * 230.0) * phases.toDouble()
+        return getWatts(
+            chargingProfile = transaction.chargingProfile,
+            fallbackScheduleStart = transaction.createdAt,
+        )
     }
 
-    private fun getAmps(
-        transaction: ChargePointTransactionDAO,
-        chargingProfile: ChargingProfile? = transaction.chargingProfile,
-    ): Pair<Double, Int>? {
+    internal fun getWatts(
+        chargingProfile: ChargingProfile?,
+        fallbackScheduleStart: Instant,
+        now: Instant = Instant.now(),
+    ): Double? {
         if (chargingProfile == null) {
             return null
         }
@@ -29,66 +32,45 @@ object ChargingProfileCalculator {
             return null
         }
 
-        val now = Instant.now()
-        val scheduleStart = chargingSchedule.startSchedule?.toInstant() ?: transaction.createdAt
+        chargingProfile.validFrom?.toInstant()?.let { validFrom ->
+            if (now < validFrom) return null
+        }
+        chargingProfile.validTo?.toInstant()?.let { validTo ->
+            if (!now.isBefore(validTo)) return null
+        }
+
+        val scheduleStart = chargingSchedule.startSchedule?.toInstant() ?: fallbackScheduleStart
         val scheduleEnd: Instant? = chargingSchedule.duration?.let { duration ->
             scheduleStart.plusSeconds(duration.toLong())
         }
 
-        // Check if our schedule has started yet
         if (now < scheduleStart) {
-            // Our schedule isn't valid yet
+            return null
+        }
+        if (scheduleEnd != null && !now.isBefore(scheduleEnd)) {
             return null
         }
 
-        // Ensure our periods are sorted by the start duration
-        val sortedPeriods = chargingSchedule.chargingSchedulePeriod.sortedBy { it.startPeriod }
+        val activePeriod = chargingSchedule.chargingSchedulePeriod
+            .filter { it.startPeriod != null && it.limit != null }
+            .sortedBy { it.startPeriod }
+            .lastOrNull { chargingSchedulePeriod ->
+                val periodStart = scheduleStart.plusSeconds(chargingSchedulePeriod.startPeriod!!.toLong())
+                !periodStart.isAfter(now)
+            } ?: return null
 
-        // Iterate through our periods
-        for (chargingSchedulePeriod in sortedPeriods) {
-            val chargingLimit = chargingSchedulePeriod.checkAndGetLimit(
-                scheduleStart = scheduleStart,
-                minChargingRate = chargingSchedule.minChargingRate,
-                checkDate = now,
-            )
-            if (chargingLimit != null) {
-                return chargingLimit
-            }
-        }
-        // If we don't find a schedule above, we will revert to trying the last period in our schedule
-        // But instead we will use the scheduleEnd as our check date, if it's null we use the last period
-        // As described in the OCPP docs
-        return sortedPeriods.lastOrNull()?.checkAndGetLimit(
-            scheduleStart = scheduleStart,
-            minChargingRate = chargingSchedule.minChargingRate,
-            checkDate = scheduleEnd,
-        )
-    }
+        val appliedLimit = activePeriod.limit?.let { limit ->
+            chargingSchedule.minChargingRate?.let { minChargingRate ->
+                maxOf(limit, minChargingRate)
+            } ?: limit
+        } ?: return null
+        val phases = activePeriod.numberPhases.coerceAtLeast(1)
 
-    private fun ChargingSchedulePeriod.checkAndGetLimit(
-        scheduleStart: Instant,
-        minChargingRate: Double?,
-        checkDate: Instant?,
-    ): Pair<Double, Int>? {
-        // How many seconds from the schedule start does this period start at?
-        val startPeriod = startPeriod?.toLong()
-        // This should never be null, but we have to check anyway
-        if (startPeriod == null) return null
-        // Create a date so we can compare
-        val periodStart = scheduleStart.plusSeconds(startPeriod)
-        // If our current time is past the start time of this period
-        if (checkDate != null && periodStart < checkDate) return null
-        // If we have a valid period lets return that limit
-        val limit: Double? = limit
-        // If we don't have a limit return null (again this shouldn't happen)
-        if (limit == null) return null
-        // Otherwise we do our calculation based if we have a min charging rate
-        return if (minChargingRate != null) {
-            // If we do we should never return lower than our minChargingRate
-            maxOf(limit, minChargingRate) to numberPhases
-        } else {
-            // Otherwise just return our limit
-            limit to numberPhases
+        return when (chargingSchedule.chargingRateUnit) {
+            ChargingRateUnit.A -> (appliedLimit * 230.0) * phases.toDouble()
+            ChargingRateUnit.W -> appliedLimit
+            ChargingRateUnit.VAR -> null
+            null -> null
         }
     }
 }

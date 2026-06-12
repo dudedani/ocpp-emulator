@@ -152,6 +152,9 @@ class SmartChargingClientHandler(
             ocppSessionInfo = ocppSessionInfo,
             connectorId = request.connectorId,
         )
+        val chargePoint = chargePointService.getByIdentity(
+            ocppSessionInfo.identity,
+        )
 
         val chargingProfile = request.csChargingProfiles
 
@@ -176,12 +179,13 @@ class SmartChargingClientHandler(
             return false
         }
 
-        val transaction = chargePointTransactionService.getByExternalId(
+        val transaction = chargePointTransactionService.getActiveByExternalIdAndChargePoint(
             externalId = transactionId,
+            chargePoint = chargePoint,
         )
 
         if (transaction == null) {
-            GlobalLogger.warn(connector, "rejected charging profile, no transaction found")
+            GlobalLogger.warn(connector, "rejected charging profile, active transaction not found for this charge point")
             return false
         }
 

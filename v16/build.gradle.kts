@@ -14,6 +14,10 @@ version = "2.5.0"
 kotlin {
     jvm()
     sourceSets {
+        jvmTest.dependencies {
+            implementation(libs.kotlin.test.junit5)
+            implementation(libs.junit.jupiter)
+        }
         jvmMain.dependencies {
             implementation(project(":common"))
 
@@ -64,6 +68,10 @@ kotlin {
 
 dependencies {
     add("kspJvm", libs.koin.ksp.compiler)
+}
+
+tasks.named<Test>("jvmTest") {
+    useJUnitPlatform()
 }
 
 ktlint {

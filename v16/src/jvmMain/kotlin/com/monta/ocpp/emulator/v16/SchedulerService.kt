@@ -10,6 +10,7 @@ import com.monta.ocpp.emulator.chargepointtransaction.entity.ChargePointTransact
 import com.monta.ocpp.emulator.common.util.injectAnywhere
 import com.monta.ocpp.emulator.common.util.launchThread
 import com.monta.ocpp.emulator.logger.GlobalLogger
+import com.monta.ocpp.emulator.v16.data.service.TxDefaultService
 import com.monta.ocpp.emulator.v16.util.MeterValuesGenerator
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Job
@@ -29,6 +30,7 @@ class SchedulerService(
     private val logger = KotlinLogging.logger {}
     private val ocppClientV16: OcppClientV16 by injectAnywhere()
     private val chargePointService: ChargePointService by injectAnywhere()
+    private val txDefaultService: TxDefaultService by injectAnywhere()
 
     private val chargePoint: ChargePointDAO
         get() = chargePointService.getById(chargePointId)
@@ -112,7 +114,13 @@ class SchedulerService(
         }
 
         transaction {
-            connector.updateKw(transaction.getChargingProfileWatts())
+            val chargingProfileWatts = transaction.getChargingProfileWatts()
+                ?: txDefaultService.getApplicableWatts(
+                    chargePoint = chargePoint,
+                    connectorDAO = connector,
+                    fallbackScheduleStart = transaction.createdAt,
+                )
+            connector.updateKw(chargingProfileWatts)
         }
 
         connector.setStatus(connector.calculateState())
