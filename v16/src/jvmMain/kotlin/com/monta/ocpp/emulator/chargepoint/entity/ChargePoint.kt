@@ -7,6 +7,7 @@ import com.monta.library.ocpp.v16.core.DataTransferRequest
 import com.monta.library.ocpp.v16.firmware.DiagnosticsStatusNotificationStatus
 import com.monta.library.ocpp.v16.firmware.FirmwareStatusNotificationStatus
 import com.monta.ocpp.emulator.chargepoint.model.ChargePointConfiguration
+import com.monta.ocpp.emulator.chargepoint.model.ChargePointDisplay
 import com.monta.ocpp.emulator.chargepoint.model.ChargePointMode
 import com.monta.ocpp.emulator.chargepoint.model.LocalAuthList
 import com.monta.ocpp.emulator.chargepoint.model.MeterType
@@ -75,8 +76,12 @@ object ChargePointTable : LongIdTable("charge_point") {
     val diagnosticsStatus = enumerationByName("diagnostics_status", 256, DiagnosticsStatusNotificationStatus::class)
     val diagnosticsStatusAt = timestamp("diagnostics_status_at")
 
-    /* 5 lines of 80 characters + newline */
-    val displayText = varchar("display_text", 5 * (80 + 1)).default("\n\n\n\n")
+    val displayText = varchar("display_text", ChargePointDisplay.TEXT_LENGTH).default(ChargePointDisplay.defaultText)
+    val displayAutomaticText = varchar("display_automatic_text", ChargePointDisplay.TEXT_LENGTH)
+        .default(ChargePointDisplay.defaultText)
+    val displayOverrideText = varchar("display_override_text", ChargePointDisplay.TEXT_LENGTH)
+        .nullable()
+        .default(null)
 
     // Config
     val configuration = json<ChargePointConfiguration>(
@@ -137,6 +142,9 @@ class ChargePointDAO(
                 this.diagnosticsStatusAt = Instant.now()
 
                 this.meterType = meterType
+                this.displayText = ChargePointDisplay.defaultText
+                this.displayAutomaticText = ChargePointDisplay.defaultText
+                this.displayOverrideText = null
                 this.configuration = ChargePointConfiguration()
                 this.localAuthList = LocalAuthList()
             }
@@ -179,6 +187,8 @@ class ChargePointDAO(
     var diagnosticsStatusAt by ChargePointTable.diagnosticsStatusAt
 
     var displayText by ChargePointTable.displayText
+    var displayAutomaticText by ChargePointTable.displayAutomaticText
+    var displayOverrideText by ChargePointTable.displayOverrideText
 
     var configuration by ChargePointTable.configuration
         private set
@@ -254,18 +264,46 @@ class ChargePointDAO(
     private fun handleMontaLCDMessage(
         request: DataTransferRequest,
     ): Boolean {
-        var displayLines = displayText.split("\n").toMutableList()
         when (request.messageId) {
-            "SmartChargingEnabled" -> displayLines[0] = if (request.data == "true") "Smart Charging" else "Charging"
-            "StartTime" -> displayLines[2] = "Start at: ${request.data}"
-            "EndTime" -> displayLines[3] = "Will be finished at: ${request.data}"
-            "SoC" -> displayLines[4] = "Battery at: ${request.data}%"
-            "ClearDisplay" -> displayLines = List(5) { "" }.toMutableList()
+            "SmartChargingEnabled" -> updateDisplayOverride(
+                lineIndex = 0,
+                text = if (request.data == "true") "Smart Charging" else "Charging",
+            )
+            "StartTime" -> updateDisplayOverride(
+                lineIndex = 2,
+                text = "Start at: ${request.data}",
+            )
+            "EndTime" -> updateDisplayOverride(
+                lineIndex = 3,
+                text = "Will be finished at: ${request.data}",
+            )
+            "SoC" -> updateDisplayOverride(
+                lineIndex = 4,
+                text = "Battery at: ${request.data}%",
+            )
+            "ClearDisplay" -> {
+                displayOverrideText = null
+                displayText = displayAutomaticText
+            }
             else -> return false
         }
 
-        displayText = displayLines.joinToString("\n")
         return true
+    }
+
+    private fun updateDisplayOverride(
+        lineIndex: Int,
+        text: String,
+    ) {
+        displayOverrideText = ChargePointDisplay.overrideText(
+            currentOverrideText = displayOverrideText,
+            lineIndex = lineIndex,
+            text = text,
+        )
+        displayText = ChargePointDisplay.merge(
+            automaticText = displayAutomaticText,
+            overrideText = displayOverrideText,
+        )
     }
 
     override fun chargePointId(): Long {

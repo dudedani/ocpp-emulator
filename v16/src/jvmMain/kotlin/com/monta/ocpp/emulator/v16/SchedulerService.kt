@@ -5,6 +5,7 @@ import com.monta.library.ocpp.v16.core.ChargePointStatus
 import com.monta.library.ocpp.v16.core.MeterValue
 import com.monta.library.ocpp.v16.core.MeterValuesRequest
 import com.monta.ocpp.emulator.chargepoint.entity.ChargePointDAO
+import com.monta.ocpp.emulator.chargepoint.service.ChargePointDisplayService
 import com.monta.ocpp.emulator.chargepoint.service.ChargePointService
 import com.monta.ocpp.emulator.chargepointtransaction.entity.ChargePointTransactionDAO
 import com.monta.ocpp.emulator.common.util.injectAnywhere
@@ -29,6 +30,7 @@ class SchedulerService(
 
     private val logger = KotlinLogging.logger {}
     private val ocppClientV16: OcppClientV16 by injectAnywhere()
+    private val chargePointDisplayService: ChargePointDisplayService by injectAnywhere()
     private val chargePointService: ChargePointService by injectAnywhere()
     private val txDefaultService: TxDefaultService by injectAnywhere()
 
@@ -54,6 +56,7 @@ class SchedulerService(
                 delay(1000)
                 yield()
                 if (!chargePoint.connected) {
+                    chargePointDisplayService.updateDisconnectedDisplay(chargePoint)
                     continue
                 }
                 heartbeat()
@@ -97,6 +100,10 @@ class SchedulerService(
 
     private suspend fun handleActiveTransactions() {
         val transactions = transaction { chargePoint.getActiveTransactions() }
+        if (transactions.isEmpty()) {
+            chargePointDisplayService.updateIdleDisplay(chargePoint)
+            return
+        }
         for (transaction in transactions) {
             try {
                 handleTransaction(transaction)
@@ -112,9 +119,10 @@ class SchedulerService(
         val connector = transaction {
             transaction.chargePointConnector
         }
+        var chargingProfileWatts: Double? = null
 
         transaction {
-            val chargingProfileWatts = transaction.getChargingProfileWatts()
+            chargingProfileWatts = transaction.getChargingProfileWatts()
                 ?: txDefaultService.getApplicableWatts(
                     chargePoint = chargePoint,
                     connectorDAO = connector,
@@ -144,6 +152,12 @@ class SchedulerService(
         }
 
         sendMeterValues(transaction, connector.kw * 1000, connector.vehicleNumberPhases)
+        chargePointDisplayService.updateTransactionDisplay(
+            chargePoint = chargePoint,
+            connector = connector,
+            chargePointTransaction = transaction,
+            chargingProfileWatts = chargingProfileWatts,
+        )
     }
 
     private suspend fun sendMeterValues(
