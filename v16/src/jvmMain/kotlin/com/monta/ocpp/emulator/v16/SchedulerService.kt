@@ -20,7 +20,6 @@ import org.koin.core.annotation.Factory
 import java.time.Duration
 import java.time.Instant
 import java.time.ZonedDateTime
-import kotlin.math.roundToInt
 
 @Factory
 class SchedulerService(
@@ -127,7 +126,7 @@ class SchedulerService(
             val newMeterValue = connector.wattHoursPerSecond * secondsSinceEndMeter.toDouble()
 
             transaction {
-                transaction.endMeter += newMeterValue.roundToInt()
+                transaction.endMeter += newMeterValue
                 transaction.chargePointConnector.meterAt = Instant.now()
             }
         }
