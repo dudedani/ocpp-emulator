@@ -78,7 +78,7 @@ class ChargePointDisplayTest {
             SuspendedEVSE
             Power: 0.0 kW  Current: 0.0 A
             Energy: 1.0 kWh
-            TxProfile: 9301  Limit: 18.0 A
+            TxProfile: 18.0 A
             Tx: 418  Connector: 1
             """.trimIndent(),
             display,
@@ -107,7 +107,7 @@ class ChargePointDisplayTest {
             Charging
             Power: 11.0 kW  Current: 16.0 A
             Energy: 2.0 kWh
-            DefaultTxProfile: 9100  Limit: 16.0 A
+            DefaultTxProfile: 16.0 A
             Tx: 419  Connector: 1
             """.trimIndent(),
             display,

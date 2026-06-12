@@ -104,13 +104,13 @@ object ChargePointDisplay {
     private fun profileLine(
         state: ChargePointDisplayState,
     ): String {
-        val profile = when {
-            state.txProfileId != null -> "TxProfile: ${state.txProfileId}"
-            state.appliedDefaultTxProfileId != null -> "DefaultTxProfile: ${state.appliedDefaultTxProfileId}"
+        val profileLabel = when {
+            state.txProfileId != null -> "TxProfile"
+            state.appliedDefaultTxProfileId != null -> "DefaultTxProfile"
             else -> "Profile: none"
         }
-        val profileWatts = state.chargingProfileWatts ?: return profile
-        return "$profile  Limit: ${formatAmps(profileWatts, state.numberPhases)} A"
+        val profileWatts = state.chargingProfileWatts ?: return profileLabel
+        return "$profileLabel: ${formatAmps(profileWatts, state.numberPhases)} A"
     }
 
     private fun toLines(
