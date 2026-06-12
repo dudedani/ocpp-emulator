@@ -12,6 +12,11 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant
 import javax.inject.Singleton
 
+data class AppliedTxDefaultProfile(
+    val profileId: Int?,
+    val watts: Double?,
+)
+
 @Singleton
 class TxDefaultService(
     private val txDefaultRepository: TxDefaultRepository,
@@ -45,16 +50,29 @@ class TxDefaultService(
         chargePoint: ChargePointDAO,
         connectorDAO: ChargePointConnectorDAO,
         fallbackScheduleStart: Instant,
-    ): Double? {
+    ): Double? = getApplicableProfile(
+        chargePoint = chargePoint,
+        connectorDAO = connectorDAO,
+        fallbackScheduleStart = fallbackScheduleStart,
+    )?.watts
+
+    fun getApplicableProfile(
+        chargePoint: ChargePointDAO,
+        connectorDAO: ChargePointConnectorDAO,
+        fallbackScheduleStart: Instant,
+    ): AppliedTxDefaultProfile? {
         return transaction {
             val profile = txDefaultRepository.getApplicable(
                 chargePointDAO = chargePoint,
                 connectorDAO = connectorDAO,
-            )?.txDefaultProfile
+            )?.txDefaultProfile ?: return@transaction null
 
-            ChargingProfileCalculator.getWatts(
-                chargingProfile = profile,
-                fallbackScheduleStart = fallbackScheduleStart,
+            AppliedTxDefaultProfile(
+                profileId = profile.chargingProfileId,
+                watts = ChargingProfileCalculator.getWatts(
+                    chargingProfile = profile,
+                    fallbackScheduleStart = fallbackScheduleStart,
+                ),
             )
         }
     }

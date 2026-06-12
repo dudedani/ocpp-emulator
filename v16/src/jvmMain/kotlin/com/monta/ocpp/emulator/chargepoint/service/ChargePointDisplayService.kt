@@ -31,6 +31,8 @@ class ChargePointDisplayService {
         connector: ChargePointConnectorDAO,
         chargePointTransaction: ChargePointTransactionDAO,
         chargingProfileWatts: Double?,
+        txProfileId: Int?,
+        appliedDefaultTxProfileId: Int?,
     ) {
         val state = transaction {
             ChargePointDisplayState(
@@ -43,6 +45,8 @@ class ChargePointDisplayService {
                 energyWh = chargePointTransaction.endMeter,
                 startTime = chargePointTransaction.startTime,
                 chargingProfileWatts = chargingProfileWatts,
+                txProfileId = txProfileId,
+                appliedDefaultTxProfileId = appliedDefaultTxProfileId,
             )
         }
         updateDisplay(chargePoint, state)

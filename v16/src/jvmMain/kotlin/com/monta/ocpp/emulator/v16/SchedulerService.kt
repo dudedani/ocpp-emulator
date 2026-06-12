@@ -120,14 +120,21 @@ class SchedulerService(
             transaction.chargePointConnector
         }
         var chargingProfileWatts: Double? = null
+        var txProfileId: Int? = null
+        var appliedDefaultTxProfileId: Int? = null
 
         transaction {
+            txProfileId = transaction.chargingProfile?.chargingProfileId
             chargingProfileWatts = transaction.getChargingProfileWatts()
-                ?: txDefaultService.getApplicableWatts(
+            if (chargingProfileWatts == null) {
+                val appliedDefaultTxProfile = txDefaultService.getApplicableProfile(
                     chargePoint = chargePoint,
                     connectorDAO = connector,
                     fallbackScheduleStart = transaction.createdAt,
                 )
+                appliedDefaultTxProfileId = appliedDefaultTxProfile?.profileId
+                chargingProfileWatts = appliedDefaultTxProfile?.watts
+            }
             connector.updateKw(chargingProfileWatts)
         }
 
@@ -157,6 +164,8 @@ class SchedulerService(
             connector = connector,
             chargePointTransaction = transaction,
             chargingProfileWatts = chargingProfileWatts,
+            txProfileId = txProfileId,
+            appliedDefaultTxProfileId = appliedDefaultTxProfileId,
         )
     }
 

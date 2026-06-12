@@ -14,6 +14,8 @@ data class ChargePointDisplayState(
     val energyWh: Double? = null,
     val startTime: Instant? = null,
     val chargingProfileWatts: Double? = null,
+    val txProfileId: Int? = null,
+    val appliedDefaultTxProfileId: Int? = null,
 )
 
 object ChargePointDisplay {
@@ -102,8 +104,13 @@ object ChargePointDisplay {
     private fun profileLine(
         state: ChargePointDisplayState,
     ): String {
-        val profileWatts = state.chargingProfileWatts ?: return "Limit: none"
-        return "Limit: ${formatAmps(profileWatts, state.numberPhases)} A Smart Charging"
+        val profile = when {
+            state.txProfileId != null -> "TxProfile: ${state.txProfileId}"
+            state.appliedDefaultTxProfileId != null -> "DefaultTxProfile: ${state.appliedDefaultTxProfileId}"
+            else -> "Profile: none"
+        }
+        val profileWatts = state.chargingProfileWatts ?: return profile
+        return "$profile  Limit: ${formatAmps(profileWatts, state.numberPhases)} A"
     }
 
     private fun toLines(

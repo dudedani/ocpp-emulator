@@ -49,7 +49,7 @@ class ChargePointDisplayTest {
             Charging
             Power: 7.4 kW  Current: 32.0 A
             Energy: 12.4 kWh
-            Limit: none
+            Profile: none
             Tx: 417  Connector: 1
             """.trimIndent(),
             display,
@@ -69,6 +69,7 @@ class ChargePointDisplayTest {
                 energyWh = 1_000.0,
                 startTime = Instant.now(),
                 chargingProfileWatts = 12_420.0,
+                txProfileId = 9301,
             ),
         )
 
@@ -77,8 +78,37 @@ class ChargePointDisplayTest {
             SuspendedEVSE
             Power: 0.0 kW  Current: 0.0 A
             Energy: 1.0 kWh
-            Limit: 18.0 A Smart Charging
+            TxProfile: 9301  Limit: 18.0 A
             Tx: 418  Connector: 1
+            """.trimIndent(),
+            display,
+        )
+    }
+
+    @Test
+    fun `renders applied default tx profile`() {
+        val display = ChargePointDisplay.automaticText(
+            ChargePointDisplayState(
+                connected = true,
+                status = ChargePointStatus.Charging,
+                connectorId = 1,
+                transactionId = 419,
+                watts = 11_040.0,
+                numberPhases = 3,
+                energyWh = 2_000.0,
+                startTime = Instant.now(),
+                chargingProfileWatts = 11_040.0,
+                appliedDefaultTxProfileId = 9100,
+            ),
+        )
+
+        assertEquals(
+            """
+            Charging
+            Power: 11.0 kW  Current: 16.0 A
+            Energy: 2.0 kWh
+            DefaultTxProfile: 9100  Limit: 16.0 A
+            Tx: 419  Connector: 1
             """.trimIndent(),
             display,
         )
@@ -105,7 +135,7 @@ class ChargePointDisplayTest {
             Smart Charging
             Power: 0.0 kW  Current: 0.0 A
             Energy: -
-            Limit: none
+            Profile: none
             Tx: 417  Connector: 1
             """.trimIndent(),
             ChargePointDisplay.merge(automatic, override),
