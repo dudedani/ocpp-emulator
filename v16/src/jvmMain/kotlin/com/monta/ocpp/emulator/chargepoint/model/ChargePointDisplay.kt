@@ -1,10 +1,8 @@
 package com.monta.ocpp.emulator.chargepoint.model
 
 import com.monta.library.ocpp.v16.core.ChargePointStatus
-import java.time.Duration
 import java.time.Instant
 import java.util.Locale
-import kotlin.math.min
 
 data class ChargePointDisplayState(
     val connected: Boolean,
@@ -28,7 +26,7 @@ object ChargePointDisplay {
             "Disconnected",
             "Connector: -",
             "Power: 0.0 kW  Current: 0.0 A",
-            "Energy: -  SoC: -",
+            "Energy: -",
             "Tx: -",
         ),
     )
@@ -84,7 +82,7 @@ object ChargePointDisplay {
             status,
             "Connector: ${state.connectorId ?: "-"}",
             "Power: 0.0 kW  Current: 0.0 A",
-            "Energy: -  SoC: -",
+            "Energy: -",
             "Tx: -",
         )
     }
@@ -95,7 +93,7 @@ object ChargePointDisplay {
         return listOf(
             state.status.name,
             "Power: ${formatKw(state.watts)} kW  Current: ${formatAmps(state.watts, state.numberPhases)} A",
-            "Energy: ${formatKwh(state.energyWh)}  SoC: ${formatSoc(state.startTime)}",
+            "Energy: ${formatKwh(state.energyWh)}",
             profileLine(state),
             "Tx: ${state.transactionId}  Connector: ${state.connectorId ?: "-"}",
         )
@@ -144,13 +142,6 @@ object ChargePointDisplay {
     ): String {
         val phases = numberPhases.coerceAtLeast(1)
         return formatOneDecimal((watts / phases.toDouble()) / 230.0)
-    }
-
-    private fun formatSoc(
-        startTime: Instant?,
-    ): String {
-        if (startTime == null) return "-"
-        return "${min(20 + (5 * Duration.between(startTime, Instant.now()).toMinutes()), 100)}%"
     }
 
     private fun formatOneDecimal(

@@ -22,7 +22,7 @@ class ChargePointDisplayTest {
             Available
             Connector: 1
             Power: 0.0 kW  Current: 0.0 A
-            Energy: -  SoC: -
+            Energy: -
             Tx: -
             """.trimIndent(),
             display,
@@ -48,7 +48,7 @@ class ChargePointDisplayTest {
             """
             Charging
             Power: 7.4 kW  Current: 32.0 A
-            Energy: 12.4 kWh  SoC: 20%
+            Energy: 12.4 kWh
             Limit: none
             Tx: 417  Connector: 1
             """.trimIndent(),
@@ -76,7 +76,7 @@ class ChargePointDisplayTest {
             """
             SuspendedEVSE
             Power: 0.0 kW  Current: 0.0 A
-            Energy: 1.0 kWh  SoC: 20%
+            Energy: 1.0 kWh
             Limit: 18.0 A Smart Charging
             Tx: 418  Connector: 1
             """.trimIndent(),
@@ -104,7 +104,7 @@ class ChargePointDisplayTest {
             """
             Smart Charging
             Power: 0.0 kW  Current: 0.0 A
-            Energy: -  SoC: -
+            Energy: -
             Limit: none
             Tx: 417  Connector: 1
             """.trimIndent(),
